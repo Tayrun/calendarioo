@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calendario de Octubre (compartido)</title>
+<style>
+  :root{
+    --bg:#faf8f5; --card:#ffffff; --ink:#2b2420; --muted:#8a7f75;
+    --accent:#e8734a; --accent-soft:#fde6dc; --line:#ece5df; --shadow:0 2px 10px rgba(43,36,32,0.06);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Georgia',ui-serif,serif; min-height:100%;
+  }
+  header{ padding:24px 20px 8px; text-align:center;}
+  header h1{ margin:0; font-size:1.6rem; font-weight:600; letter-spacing:.5px;}
+  header p{ margin:6px 0 0; color:var(--muted); font-size:.9rem; font-family:ui-sans-serif,system-ui;}
+  .status{ display:inline-flex; align-items:center; gap:6px; margin-top:8px; font-size:.72rem; color:var(--muted); font-family:ui-sans-serif,system-ui;}
+  .status .led{ width:7px; height:7px; border-radius:50%; background:#c9c0b8;}
+  .status.live .led{ background:#4caf6e; }
+  .status.off .led{ background:#e8734a; }
+  .wrap{ max-width:760px; margin:0 auto; padding:12px 16px 60px;}
+  .grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-top:16px;}
+  .dow{ text-align:center; font-size:.72rem; color:var(--muted); font-family:ui-sans-serif,system-ui; text-transform:uppercase; letter-spacing:.06em; padding-bottom:4px;}
+  .day{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    min-height:64px; padding:8px 6px; cursor:pointer; position:relative;
+    display:flex; flex-direction:column; gap:4px; box-shadow:var(--shadow);
+    transition:transform .12s ease, border-color .12s ease;
+  }
+  .day:hover{ transform:translateY(-2px); border-color:var(--accent);}
+  .day.empty{ background:transparent; box-shadow:none; border:none; cursor:default;}
+  .day.empty:hover{ transform:none;}
+  .day .num{ font-size:.95rem; font-weight:600; font-family:ui-sans-serif,system-ui;}
+  .day .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); position:absolute; top:10px; right:10px;}
+  .day .preview{ font-size:.68rem; color:var(--muted); font-family:ui-sans-serif,system-ui; line-height:1.3; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;}
+  .overlay{ position:fixed; inset:0; background:rgba(20,16,13,.45); display:none; align-items:flex-end; justify-content:center; z-index:50;}
+  .overlay.open{ display:flex; }
+  .sheet{
+    background:var(--card); width:100%; max-width:640px; max-height:88vh; overflow-y:auto;
+    border-radius:20px 20px 0 0; padding:20px 18px 24px; font-family:ui-sans-serif,system-ui;
+    box-shadow:0 -4px 24px rgba(0,0,0,.15);
+  }
+  @media (min-width:700px){ .overlay{ align-items:center; } .sheet{ border-radius:18px; max-height:80vh; } }
+  .sheet-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  .sheet-head h2{ margin:0; font-family:Georgia,serif; font-size:1.25rem;}
+  .close-btn{ background:none; border:none; font-size:1.3rem; color:var(--muted); cursor:pointer; padding:4px 8px;}
+  .who{ width:100%; border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin-bottom:12px;
+    background:var(--bg); color:var(--ink); font-family:ui-sans-serif,system-ui; font-size:.82rem;}
+  .savehint{ font-size:.68rem; color:var(--muted); margin:-4px 0 10px; font-family:ui-sans-serif,system-ui;}
+  .daynote{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    background:var(--bg); color:var(--ink); font-family:ui-sans-serif,system-ui; font-size:.88rem;
+    resize:vertical; min-height:44px; margin-bottom:14px;
+  }
+  .daynote::placeholder{ color:var(--muted); }
+  .hours{ display:flex; flex-direction:column; gap:6px; }
+  .hour-row{ display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--line); padding:6px 0;}
+  .hour-label{ width:52px; flex-shrink:0; font-size:.78rem; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .hour-input{ flex:1; border:none; background:transparent; color:var(--ink); font-size:.86rem; padding:6px 8px; border-radius:8px; font-family:ui-sans-serif,system-ui;}
+  .hour-input:focus{ outline:none; background:var(--accent-soft);}
+  .hour-row.filled .hour-label{ color:var(--accent); font-weight:600;}
+  footer{ text-align:center; color:var(--muted); font-size:.72rem; font-family:ui-sans-serif,system-ui; padding-bottom:12px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>🍂 Octubre</h1>
+  <p>Calendario compartido — todos ven y editan los mismos planes</p>
+  <div class="status" id="status"><span class="led"></span><span id="statusText">Conectando…</span></div>
+</header>
+<div class="wrap">
+  <div class="grid" id="grid"></div>
+</div>
+<footer>Los cambios se guardan y se sincronizan para todos en tiempo real</footer>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="sheetTitle">1 de octubre</h2>
+      <button class="close-btn" id="closeBtn">✕</button>
+    </div>
+    <input class="who" id="whoInput" placeholder="Tu nombre (para saber quién escribió qué)">
+    <div class="savehint">Los cambios se guardan solos y todos los ven al instante</div>
+    <textarea class="daynote" id="dayNote" placeholder="Nota general del día (ej: cumpleaños de Juli, plan con el grupo...)"></textarea>
+    <div class="hours" id="hours"></div>
+  </div>
+</div>
+
+<!-- Firebase (solo los módulos que usamos: app + realtime database) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getDatabase, ref, onValue, update, get, child
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+
+  // ============================================================
+  // 1) PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE
+  //    (Firebase console -> Configuración del proyecto -> Tus apps -> SDK)
+  // ============================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyAGjJY_qsC850oq0O_ilYZviAC1cNc1hPg",
+    authDomain: "octubrealex-edfdf.firebaseapp.com",
+    databaseURL: "https://octubrealex-edfdf-default-rtdb.firebaseio.com",
+    projectId: "octubrealex-edfdf",
+    storageBucket: "octubrealex-edfdf.firebasestorage.app",
+    messagingSenderId: "685306639514",
+    appId: "1:685306639514:web:2b9c7ef0af5563296f1b23",
+    measurementId: "G-WJ2GKFZ8EG"
+  };
+  // ============================================================
+
+  const YEAR = 2026, MONTH = 9; // octubre
+  const monthNames = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const dowNames = ["L","M","X","J","V","S","D"];
+
+  const firstOfMonth = new Date(YEAR, MONTH, 1);
+  let startOffset = firstOfMonth.getDay() - 1;
+  if(startOffset < 0) startOffset = 6;
+  const daysInMonth = new Date(YEAR, MONTH+1, 0).getDate();
+
+  const grid = document.getElementById('grid');
+  const overlay = document.getElementById('overlay');
+  const sheetTitle = document.getElementById('sheetTitle');
+  const dayNoteEl = document.getElementById('dayNote');
+  const hoursEl = document.getElementById('hours');
+  const whoInput = document.getElementById('whoInput');
+  const statusEl = document.getElementById('status');
+  const statusText = document.getElementById('statusText');
+
+  whoInput.value = localStorage.getItem('calendario_nombre') || '';
+  whoInput.addEventListener('input', ()=> localStorage.setItem('calendario_nombre', whoInput.value));
+
+  let app, db;
+  try{
+    app = initializeApp(firebaseConfig);
+    db = getDatabase(app);
+    statusEl.className = 'status live';
+    statusText.textContent = 'Sincronizado en tiempo real';
+  }catch(e){
+    console.error(e);
+    statusEl.className = 'status off';
+    statusText.textContent = 'No se pudo conectar — revisa firebaseConfig';
+  }
+
+  let daysData = {}; // { "1": {note, hours:{7:"..."}}, ... }
+  let currentDay = null;
+
+  function emptyDay(){ return { note:"", hours:{} }; }
+  function escapeHtml(s){
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+  function hasContent(d){
+    const dt = daysData[d];
+    if(!dt) return false;
+    if(dt.note && dt.note.trim()) return true;
+    return Object.values(dt.hours||{}).some(v=>v && v.trim());
+  }
+  function preview(d){
+    const dt = daysData[d];
+    if(!dt) return "";
+    if(dt.note && dt.note.trim()) return dt.note.trim();
+    const h = Object.entries(dt.hours||{}).find(([k,v])=>v && v.trim());
+    return h ? (h[0]+":00 "+h[1]) : "";
+  }
+
+  function renderGrid(){
+    grid.innerHTML = "";
+    dowNames.forEach(n=>{
+      const el = document.createElement('div');
+      el.className = 'dow'; el.textContent = n;
+      grid.appendChild(el);
+    });
+    for(let i=0;i<startOffset;i++){
+      const el = document.createElement('div');
+      el.className = 'day empty';
+      grid.appendChild(el);
+    }
+    for(let d=1; d<=daysInMonth; d++){
+      const el = document.createElement('div');
+      el.className = 'day';
+      el.innerHTML = `<span class="num">${d}</span><span class="preview">${escapeHtml(preview(d))}</span>`;
+      if(hasContent(d)){
+        const dot = document.createElement('span');
+        dot.className = 'dot';
+        el.appendChild(dot);
+      }
+      el.addEventListener('click', ()=> openDay(d));
+      grid.appendChild(el);
+    }
+  }
+
+  function renderHours(dt){
+    hoursEl.innerHTML = "";
+    for(let h=7; h<=23; h++){
+      const row = document.createElement('div');
+      row.className = 'hour-row' + (dt.hours[h] ? ' filled' : '');
+      const label = String(h).padStart(2,'0') + ":00";
+      const val = (dt.hours[h]||"").replace(/"/g,'&quot;');
+      row.innerHTML = `<span class="hour-label">${label}</span><input class="hour-input" data-hour="${h}" placeholder="Añadir plan..." value="${val}">`;
+      hoursEl.appendChild(row);
+    }
+  }
+
+  let dayUnsub = null;
+
+  function openDay(d){
+    currentDay = d;
+    const dt = daysData[d] || emptyDay();
+    sheetTitle.textContent = `${d} de ${monthNames[MONTH]}`;
+    dayNoteEl.value = dt.note || "";
+    renderHours(dt);
+    overlay.classList.add('open');
+
+    if(!db) return;
+    if(dayUnsub) dayUnsub();
+    const dayRef = ref(db, 'days/' + d);
+    dayUnsub = onValue(dayRef, (snap)=>{
+      const data = snap.val() || {};
+      daysData[d] = { note: data.note || "", hours: data.hours || {} };
+      renderGrid();
+      if(document.activeElement !== dayNoteEl){
+        dayNoteEl.value = daysData[d].note || "";
+      }
+      const focusedHour = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.hour : null;
+      for(let h=7; h<=23; h++){
+        if(String(h) === focusedHour) continue;
+        const row = hoursEl.querySelector(`.hour-input[data-hour="${h}"]`);
+        if(row){
+          row.value = daysData[d].hours[h] || "";
+          row.closest('.hour-row').classList.toggle('filled', !!row.value.trim());
+        }
+      }
+    });
+  }
+
+  function closeDay(){
+    overlay.classList.remove('open');
+    if(dayUnsub){ dayUnsub(); dayUnsub = null; }
+    currentDay = null;
+  }
+
+  let noteTimer = null;
+  dayNoteEl.addEventListener('input', ()=>{
+    if(currentDay==null) return;
+    daysData[currentDay] = daysData[currentDay] || emptyDay();
+    daysData[currentDay].note = dayNoteEl.value;
+    renderGrid();
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(()=>{
+      if(!db) return;
+      update(ref(db, 'days/' + currentDay), { note: dayNoteEl.value }).catch(e=>console.error(e));
+    }, 500);
+  });
+
+  const hourTimers = {};
+  hoursEl.addEventListener('input', (e)=>{
+    if(!e.target.matches('.hour-input') || currentDay==null) return;
+    const h = e.target.dataset.hour;
+    daysData[currentDay] = daysData[currentDay] || emptyDay();
+    daysData[currentDay].hours[h] = e.target.value;
+    e.target.closest('.hour-row').classList.toggle('filled', !!e.target.value.trim());
+    renderGrid();
+    clearTimeout(hourTimers[h]);
+    hourTimers[h] = setTimeout(()=>{
+      if(!db) return;
+      const updateObj = {};
+      updateObj['days/' + currentDay + '/hours/' + h] = e.target.value;
+      update(ref(db), updateObj).catch(e=>console.error(e));
+    }, 500);
+  });
+
+  document.getElementById('closeBtn').addEventListener('click', closeDay);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeDay(); });
+
+  renderGrid();
+
+  if(db){
+    onValue(ref(db, 'days'), (snap)=>{
+      const val = snap.val() || {};
+      Object.keys(val).forEach(id=>{
+        daysData[id] = { note: val[id].note || "", hours: val[id].hours || {} };
+      });
+      renderGrid();
+    }, (err)=>{
+      console.error(err);
+      statusEl.className = 'status off';
+      statusText.textContent = 'Se perdió la conexión con la base de datos';
+    });
+  }
+</script>
+</body>
+</html>
